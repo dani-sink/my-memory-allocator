@@ -25,6 +25,25 @@ inline size_t allocSize(size_t size) {
     return size + sizeof(Block) - sizeof(std::declval<Block>().data);
 }
 
+Block *firstFit(size_t size) {
+    auto block = heapStart;
+
+    while (block != nullptr) {
+        if (block->used || block->size < size) {
+            block = block->next;
+            continue;
+        }
+
+        return block;
+    }
+
+    return nullptr;
+}
+
+Block *findBlock(size_t size) {
+    return firstFit(size);
+}
+
 Block *requestFromOS(size_t size){
     auto block = (Block *)sbrk(0);
 
@@ -37,6 +56,10 @@ Block *requestFromOS(size_t size){
 
 word_t *alloc(size_t size) {
     size = align(size);
+
+    if (auto block = findBlock(size)) {
+        return block->data;
+    }
     
     auto block = requestFromOS(size);
 
@@ -79,6 +102,11 @@ int main(int argc, char const *argv[]) {
 
     free(p2);
     assert(p2b->used == false);
+
+    auto p3 = alloc(8);
+    auto p3b = getHeader(p3);
+    assert(p3b->size == 8);
+    assert(p3b == p2b);
     puts("\nAll assertions passed!\n");
     return 0;
 }
