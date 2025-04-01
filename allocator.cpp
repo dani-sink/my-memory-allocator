@@ -16,6 +16,7 @@ struct Block {
 enum class SearchMode {
     FirstFit,
     NextFit,
+    BestFit,
 };
 
 static Block *heapStart = nullptr;
@@ -104,12 +105,52 @@ Block *nextFit(size_t size) {
     return nullptr;
 }
 
+Block *bestFit(size_t size){
+    auto block = heapStart;
+    auto currentBestBlock = heapStart;
+    auto found = false;
+    while (block != nullptr) {
+        if (block->used || block->size < size) {
+            block = block->next;
+            continue;
+        }
+
+        found = true;
+        auto currentBlockSizeDiff = block->size - size;
+        if (currentBlockSizeDiff == 0) {
+            currentBestBlock = block;
+            currentBestBlock->used = true;
+            return currentBestBlock;
+        }
+        else if (currentBestBlock == heapStart){
+            currentBestBlock = block;
+            block = block->next;
+        } else {
+            auto currentBestBlockSizeDiff = currentBestBlock->size - size;
+            if (currentBlockSizeDiff < currentBestBlockSizeDiff) {
+                currentBestBlock = block;
+            }
+        }
+    }
+
+    if (found == true) {
+        currentBestBlock->used = true;
+        return currentBestBlock;
+    } else {
+        return nullptr;
+    }
+
+}
+
 Block *findBlock(size_t size) {
     if (searchMode == SearchMode::FirstFit) {
         return firstFit(size);
     }
     else if (searchMode == SearchMode::NextFit) {
         return nextFit(size);
+    }
+    else if (searchMode == SearchMode::BestFit) {
+        return bestFit(size);
     }
     else {
         return nullptr;
@@ -211,47 +252,79 @@ int main(int argc, char const *argv[]) {
 
     // alloc(16);
 
-    init(SearchMode::NextFit);
+    // init(SearchMode::NextFit);
 
-    auto a1 = alloc(8);
-    auto a2 = alloc(8);
-    auto a3 = alloc(8);
+    // auto a1 = alloc(8);
+    // auto a2 = alloc(8);
+    // auto a3 = alloc(8);
 
-    auto a4 = alloc(16);
-    auto a5 = alloc(16);
+    // auto a4 = alloc(16);
+    // auto a5 = alloc(16);
 
 
-    free(a4);
-    free(a5);
+    // free(a4);
+    // free(a5);
 
-    // Allocate a16 again, should go into a4's slot
-    auto a6 = alloc(16);
-    assert(getHeader(a6) == getHeader(a4));
-    assert(searchStart == getHeader(a6));
-    // Test wrap-around behavior
-    auto a7 = alloc(16); // This should go into a5
-    assert(getHeader(a7) == getHeader(a5));
-    assert(searchStart == getHeader(a7));
+    // // Allocate a16 again, should go into a4's slot
+    // auto a6 = alloc(16);
+    // assert(getHeader(a6) == getHeader(a4));
+    // assert(searchStart == getHeader(a6));
+    // // Test wrap-around behavior
+    // auto a7 = alloc(16); // This should go into a5
+    // assert(getHeader(a7) == getHeader(a5));
+    // assert(searchStart == getHeader(a7));
 
-    // Now the heap has no free 16-byte blocks
-    // Allocate a larger block to force sbrk (new memory)
-    auto a8 = alloc(32);
-    assert(getHeader(a8)->size == align(32));
-    assert(getHeader(a8)->used == true);
+    // // Now the heap has no free 16-byte blocks
+    // // Allocate a larger block to force sbrk (new memory)
+    // auto a8 = alloc(32);
+    // assert(getHeader(a8)->size == align(32));
+    // assert(getHeader(a8)->used == true);
 
-    // // Check that the searchStart is not pointing to a reused free block
-    auto a9 = alloc(1000);
-    assert(getHeader(a9)->used == true);
+    // // // Check that the searchStart is not pointing to a reused free block
+    // auto a9 = alloc(1000);
+    // assert(getHeader(a9)->used == true);
 
-    std::cout << getHeader(a1) << std::endl;
-    std::cout << getHeader(a2) << std::endl;
-    std::cout << getHeader(a3) << std::endl;
-    std::cout << getHeader(a4) << std::endl;
-    std::cout << getHeader(a5) << std::endl;
-    std::cout << getHeader(a6) << std::endl;
-    std::cout << getHeader(a7) << std::endl;
-    std::cout << getHeader(a8) << std::endl;
-    std::cout << getHeader(a9) << std::endl;
+    // std::cout << getHeader(a1) << std::endl;
+    // std::cout << getHeader(a2) << std::endl;
+    // std::cout << getHeader(a3) << std::endl;
+    // std::cout << getHeader(a4) << std::endl;
+    // std::cout << getHeader(a5) << std::endl;
+    // std::cout << getHeader(a6) << std::endl;
+    // std::cout << getHeader(a7) << std::endl;
+    // std::cout << getHeader(a8) << std::endl;
+    // std::cout << getHeader(a9) << std::endl;
+
+    init(SearchMode::BestFit);
+ 
+    // --------------------------------------
+    // Test case 6: Best-fit search
+    //
+    
+    // [[8, 1], [64, 1], [8, 1], [16, 1]]
+    alloc(8);
+    auto z1 = alloc(64);
+    alloc(8);
+    auto z2 = alloc(16);
+    
+    // Free the last 16
+    free(z2);
+    
+    // Free 64:
+    free(z1);
+    
+    // [[8, 1], [64, 0], [8, 1], [16, 0]]
+    
+    // Reuse the last 16 block:
+    auto z3 = alloc(16);
+    assert(getHeader(z3) == getHeader(z2));
+    
+    // // [[8, 1], [64, 0], [8, 1], [16, 1]]
+    
+    // // Reuse 64, splitting it to 16, and 24 (considering header)
+    z3 = alloc(16);
+    assert(getHeader(z3) == getHeader(z1));
+    
+    // [[8, 1], [16, 1], [24, 0], [8, 1], [16, 1]]
 
     puts("\nAll assertions passed!\n");
     return 0;
