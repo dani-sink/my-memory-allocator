@@ -238,8 +238,23 @@ Block *getHeader(word_t *data) {
     return (Block *)((char *)data + sizeof(std::declval<Block>().data) - sizeof(Block));
 }
 
+
+bool canCoalesce(Block *block) {
+    return block->next && !block->next->used;
+}
+
+
+Block *coalesce(Block *block){
+    block->size += allocSize(block->next->size);
+    block->next = block->next->next;
+    return block;
+}
+
 void free(word_t *data) {
     auto block = getHeader(data);
+    if (canCoalesce(block)) {
+        block = coalesce(block);
+    }
     block->used = false;
 }
 

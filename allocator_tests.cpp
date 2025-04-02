@@ -132,12 +132,52 @@ void test_bestFit_allocation(){
 }
 
 
+void test_split_block_bestFit(){
+    init(SearchMode::BestFit);
+
+    auto p1 = alloc(64);
+    Block *b1 = getHeader(p1);
+    free(p1);
+
+    auto p2 = alloc(16);
+    Block *b2 = getHeader(p2);
+    
+    assert(b2 == b1);
+    assert(b2->size == align(16));
+    assert(b2->used == true);
+    assert(b2->next != nullptr);
+    assert(b2->next->used == false);
+
+    std::cout << "✅ test_split_block_bestFit passed!\n";
+    resetHeap();
+}
+
+
+void test_coalesce_blocks_bestFit(){
+    init(SearchMode::BestFit);
+    
+    auto p1 = alloc(32);
+    auto p2 = alloc(32);
+
+    auto b1 = getHeader(p1);
+    auto b2 = getHeader(p2);
+
+    free(p2);
+    free(p1);
+
+    assert(b1->next == b2->next);
+    assert(b1->size == align(32) + align(32) + headerSize());
+    std::cout << "✅ test_coalesce_blocks_bestFit passed!\n";
+    resetHeap();
+}
+
 int main(int argc, char const *argv[]) {
     test_basic_allocation_firstFit();
     test_nextFit_allocation_one();
     test_nextFit_allocation_two();
     test_bestFit_allocation();
-
+    test_split_block_bestFit();
+    test_coalesce_blocks_bestFit();
     std::cout << "\nAll tests passed!\n";
     return 0;
 }
