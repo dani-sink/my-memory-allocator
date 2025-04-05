@@ -171,6 +171,36 @@ void test_coalesce_blocks_bestFit(){
     resetHeap();
 }
 
+
+void test_free_list_stategy(){
+    init(SearchMode::FreeList);
+
+    auto b1 = alloc(64);
+    auto b2 = alloc(128);
+    auto b3 = alloc(664);
+
+    // Allocate 3 blocks
+
+    assert(b1 != nullptr);
+    assert(b2 != nullptr);
+    assert(b3 != nullptr);
+
+    // Free second block
+    free(b2);
+    assert(!free_list.empty());
+
+    // Allocate new block of the same size as b2
+    auto b4 = alloc(128);
+
+    // It should reuse the block we just freed
+    assert(b4 != nullptr);
+    assert(b4 == b2);
+
+    std::cout << "✅ test_free_list_stategy passed!\n";
+
+    resetHeap();
+}
+
 int main(int argc, char const *argv[]) {
     test_basic_allocation_firstFit();
     test_nextFit_allocation_one();
@@ -178,6 +208,7 @@ int main(int argc, char const *argv[]) {
     test_bestFit_allocation();
     test_split_block_bestFit();
     test_coalesce_blocks_bestFit();
+    test_free_list_stategy();
     std::cout << "\nAll tests passed!\n";
     return 0;
 }

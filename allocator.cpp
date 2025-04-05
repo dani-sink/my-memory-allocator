@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <assert.h>
+#include <list>
 
 using word_t = intptr_t;
 
@@ -10,6 +11,7 @@ struct Block {
     size_t size;
     bool used;
     Block *next;
+    // Block *prev;
     word_t data[1];
 };
 
@@ -17,6 +19,7 @@ enum class SearchMode {
     FirstFit,
     NextFit,
     BestFit,
+    FreeList,
 };
 
 static Block *heapStart = nullptr;
@@ -26,6 +29,8 @@ static auto top = heapStart;
 static Block *searchStart = heapStart;
 
 static auto searchMode = SearchMode::FirstFit;
+
+static std::list<Block *> free_list;
 
 inline size_t align(size_t n){
     return (n + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1);
@@ -183,15 +188,32 @@ Block *bestFit(size_t size){
 
 }
 
+
+Block *freeList(size_t size) {
+    for (const auto &block : free_list){
+        if (block->size < size) {
+            continue;
+        }
+
+        free_list.remove(block);
+        return listAllocate(block, size);
+    }
+    return nullptr;
+}
+
+
 Block *findBlock(size_t size) {
     if (searchMode == SearchMode::FirstFit) {
         return firstFit(size);
     }
-    else if (searchMode == SearchMode::NextFit) {
+    if (searchMode == SearchMode::NextFit) {
         return nextFit(size);
     }
-    else if (searchMode == SearchMode::BestFit) {
+    if (searchMode == SearchMode::BestFit) {
         return bestFit(size);
+    }
+    if (searchMode == SearchMode::FreeList) {
+        return freeList(size);
     }
     else {
         return nullptr;
@@ -256,5 +278,8 @@ void free(word_t *data) {
         block = coalesce(block);
     }
     block->used = false;
+    if (searchMode == SearchMode::FreeList) {
+        free_list.push_back(block);
+    }
 }
 
