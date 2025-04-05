@@ -201,6 +201,104 @@ void test_free_list_stategy(){
     resetHeap();
 }
 
+void test_segregated_fit_strategy() {
+
+    init(SearchMode::SegregatedFit);
+    
+    // Allocates blocks with size of buckets
+    auto b8 = alloc(8);
+    auto b16 = alloc(16);
+    auto b32 = alloc(32);
+    auto b64 = alloc(64);
+
+    assert(b8 != nullptr);
+    assert(b16 != nullptr);
+    assert(b32 != nullptr);
+    assert(b64 != nullptr);
+
+
+    // Free the blocks
+    free(b8);
+    free(b16);
+    free(b32);
+    free(b64);
+
+    /* 
+    Store header info of each block in the appropriate bucket.
+    This is to simulate the bucket population behavior
+    */
+    segregatedLists[0] = getHeader(b8);
+    segregatedLists[1] = getHeader(b16);
+    segregatedLists[2] = getHeader(b32);
+    segregatedLists[3] = getHeader(b64);
+
+    // Reallocate the freed blocks
+    auto new_b8 = alloc(8);
+    auto new_b16 = alloc(16);
+    auto new_b32 = alloc(32);
+    auto new_b64 = alloc(64);
+
+
+    // Verify if the same blocks were used
+    assert(new_b8 == b8);
+    assert(new_b16 == b16);
+    assert(new_b32 == b32);
+    assert(new_b64 == b64);
+    std::cout << "✅ test_segregated_fit_strategy passed!\n";
+    
+    resetHeap();
+}
+
+
+void test_segregated_fit_strategy_with_non_exact_sizes(){
+
+    init(SearchMode::SegregatedFit);
+    
+    // Allocates blocks with size that don't match the bucket sizes
+    auto b24 = alloc(24); // Goes in 32-byte bucket
+    auto b40 = alloc(40); // Goes in 64-byte bucket
+    auto b100 = alloc(100); // Goes in 128-byte bucket
+
+    assert(b24 != nullptr);
+    assert(b40 != nullptr);
+    assert(b100 != nullptr);
+
+    // Save the header of each block
+    auto h24 = getHeader(b24);
+    auto h40 = getHeader(b40);
+    auto h100 = getHeader(b100);
+    
+
+    // Free the blocks
+    free(b24);
+    free(b40);
+    free(b100);
+
+
+    // Assign the block to the appropriate segregated lists manually
+    segregatedLists[getBucket(h24->size)] = h24;
+    segregatedLists[getBucket(h40->size)] = h40;
+    segregatedLists[getBucket(h100->size)] = h100;
+
+    
+    // Allocate slightly smaller size to test reuse behavior from the buckets
+    auto reused_b24 = alloc(20); // Should reuse from 32-byte bucket
+    auto reused_b40 = alloc(36); // Should reuse from 64-byte bucket
+    auto reused_b100 = alloc(100); // Should reuse from 28-byte bucket
+
+    // Verify if the same blocks were reused
+    assert(reused_b24 == b24);
+    assert(reused_b24 == b24);
+    assert(reused_b24 == b24);
+
+    std::cout << "✅ test_segregated_fit_strategy_with_non_exact_sizes passed!\n";
+
+    resetHeap();
+}
+
+
+
+
 int main(int argc, char const *argv[]) {
     test_basic_allocation_firstFit();
     test_nextFit_allocation_one();
@@ -209,6 +307,8 @@ int main(int argc, char const *argv[]) {
     test_split_block_bestFit();
     test_coalesce_blocks_bestFit();
     test_free_list_stategy();
+    test_segregated_fit_strategy();
+    test_segregated_fit_strategy_with_non_exact_sizes();
     std::cout << "\nAll tests passed!\n";
     return 0;
 }

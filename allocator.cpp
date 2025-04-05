@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <assert.h>
+#include <cmath>
 #include <list>
 
 using word_t = intptr_t;
@@ -20,6 +21,7 @@ enum class SearchMode {
     NextFit,
     BestFit,
     FreeList,
+    SegregatedFit,
 };
 
 static Block *heapStart = nullptr;
@@ -31,6 +33,15 @@ static Block *searchStart = heapStart;
 static auto searchMode = SearchMode::FirstFit;
 
 static std::list<Block *> free_list;
+
+Block *segregatedLists[] = {
+    nullptr,  // 8 bytes
+    nullptr,  // 16 bytes
+    nullptr,  // 32 bytes
+    nullptr,  // 64 bytes
+    nullptr,  // 128 bytes
+    nullptr,  // more than 128 bytes;
+};
 
 inline size_t align(size_t n){
     return (n + sizeof(word_t) - 1) & ~(sizeof(word_t) - 1);
@@ -44,6 +55,22 @@ inline size_t allocSize(size_t size) {
     return size + sizeof(Block) - sizeof(std::declval<Block>().data);
 }
 
+inline int getBucket(size_t size) {
+    if (size <= 8) {
+        return 0;
+    } else if (size <= 16){
+        return 1;
+    } else if (size <= 32){
+        return 2;
+    } else if (size <= 64){
+        return 3;
+    } else if (size <= 128){
+        return 4;
+    } else {
+        return 5;
+    }    
+}
+
 void resetHeap(){
     if (heapStart == nullptr){
         return;
@@ -54,6 +81,14 @@ void resetHeap(){
     heapStart = nullptr;
     top = nullptr;
     searchStart = nullptr;
+
+    free_list.clear();
+
+    int length_seg_list = sizeof(segregatedLists) / sizeof(segregatedLists[0]);
+
+    for (int i = 0; i < length_seg_list; i++){
+        segregatedLists[i] = nullptr;
+    }
 }
 
 void init(SearchMode mode) {
@@ -202,6 +237,18 @@ Block *freeList(size_t size) {
 }
 
 
+Block *segregatedFit(size_t size){
+    auto bucket = getBucket(size);
+    auto originalHeapStart = heapStart;
+    heapStart = segregatedLists[bucket];
+
+    auto block = bestFit(size);
+
+    heapStart = originalHeapStart;
+    return block;
+}
+
+
 Block *findBlock(size_t size) {
     if (searchMode == SearchMode::FirstFit) {
         return firstFit(size);
@@ -214,6 +261,9 @@ Block *findBlock(size_t size) {
     }
     if (searchMode == SearchMode::FreeList) {
         return freeList(size);
+    }
+    if (searchMode == SearchMode::SegregatedFit) {
+        return segregatedFit(size);
     }
     else {
         return nullptr;
